@@ -41,7 +41,6 @@ This simple example demonstrates how a purchase can be made using a person's
 credit card details.
 
 ```ruby
-require 'rubygems'
 require 'active_merchant'
 
 # Use the TrustCommerce test servers
@@ -86,6 +85,7 @@ The [ActiveMerchant Wiki](http://github.com/Shopify/active_merchant/wikis) conta
 * [App55](https://www.app55.com/) - AU, BR, CA, CH, CL, CN, CO, CZ, DK, EU, GB, HK, HU, ID, IS, JP, KE, KR, MX, MY, NO, NZ, PH, PL, TH, TW, US, VN, ZA
 * [Authorize.Net CIM](http://www.authorize.net/) - US
 * [Authorize.Net](http://www.authorize.net/) - AD, AT, AU, BE, BG, CA, CH, CY, CZ, DE, DK, ES, FI, FR, GB, GB, GI, GR, HU, IE, IT, LI, LU, MC, MT, NL, NO, PL, PT, RO, SE, SI, SK, SM, TR, US, VA
+* [Axcess MS](http://www.axcessms.com/) - AD, AT, BE, BG, BR, CA, CH, CY, CZ, DE, DK, EE, ES, FI, FO, FR, GB, GI, GR, HR, HU, IE, IL, IM, IS, IT, LI, LT, LU, LV, MC, MT, MX, NL, NO, PL, PT, RO, RU, SE, SI, SK, TR, US, VA
 * [Balanced](https://www.balancedpayments.com/) - US
 * [Bank Frick](http://www.bankfrickacquiring.com/) - LI, US
 * [Banwire](http://www.banwire.com/) - MX
@@ -117,6 +117,7 @@ The [ActiveMerchant Wiki](http://github.com/Shopify/active_merchant/wikis) conta
 * [Fat Zebra](https://www.fatzebra.com.au/) - AU
 * [Federated Canada](http://www.federatedcanada.com/) - CA
 * [Finansbank WebPOS](https://www.fbwebpos.com/) - US, TR
+* [Flo2Cash](http://www.flo2cash.co.nz/) - NZ
 * [1stPayGateway.Net](http://1stpaygateway.net/) - US
 * [FirstData Global Gateway e4](http://www.firstdata.com) - CA, US
 * [FirstGiving](http://www.firstgiving.com/) - US
@@ -127,6 +128,7 @@ The [ActiveMerchant Wiki](http://github.com/Shopify/active_merchant/wikis) conta
 * [iATS Payments](http://home.iatspayments.com/) - AU, BR, CA, CH, DE, DK, ES, FI, FR, GR, HK, IE, IT, NL, NO, PT, SE, SG, TR, UK, US
 * [Inspire Commerce](http://www.inspiregateway.com) - US
 * [InstaPay](http://www.instapayllc.com) - US
+* [IPP](http://www.ippayments.com.au/) - AU
 * [Iridium](http://www.iridiumcorp.co.uk/) - GB, ES
 * [iTransact](http://www.itransact.com/) - US
 * [JetPay](http://www.jetpay.com/) - US
@@ -156,6 +158,7 @@ The [ActiveMerchant Wiki](http://github.com/Shopify/active_merchant/wikis) conta
 * [Orbital Paymentech](http://chasepaymentech.com/) - US, CA
 * [PagoFacil](http://www.pagofacil.net/) - MX
 * [PayGate PayXML](http://paygate.co.za/) - US, ZA
+* [PayHub](http://www.payhub.com/) - US
 * [PayJunction](http://www.payjunction.com/) - US
 * [PaySecure](http://www.commsecure.com.au/paysecure.shtml) - AU
 * [Paybox Direct](http://www.paybox.com/) - FR
@@ -177,8 +180,10 @@ The [ActiveMerchant Wiki](http://github.com/Shopify/active_merchant/wikis) conta
 * [Psigate](http://www.psigate.com/) - CA
 * [PSL Payment Solutions](http://www.paymentsolutionsltd.com/) - GB
 * [QuickBooks Merchant Services](http://payments.intuit.com/) - US
+* [QuickBooks Payments](http://payments.intuit.com/) - US
 * [Quantum Gateway](http://www.quantumgateway.com) - US
 * [QuickPay](http://quickpay.net/) - DE, DK, ES, FI, FR, FO, GB, IS, NO, SE
+* [Qvalent](https://www.qvalent.com/) - AU
 * [Raven PacNet](http://www.pacnetservices.com/) - US
 * [Realex](http://www.realexpayments.com/) - IE, GB, FR, BE, NL, LU, IT
 * [Redsys](http://www.redsys.es/) - ES
@@ -201,28 +206,12 @@ The [ActiveMerchant Wiki](http://github.com/Shopify/active_merchant/wikis) conta
 * [USA ePay](http://www.usaepay.com/) - US
 * [Verifi](http://www.verifi.com/) - US
 * [ViaKLIX](http://viaklix.com) - US
-* [Vindicia](http://www.vindicia.com/) - US, CA, GB, AU, MX, BR, DE, KR, CN, HK
 * [WebPay](https://webpay.jp/) - JP
 * [WePay](https://www.wepay.com/) - US
 * [Wirecard](http://www.wirecard.com) - AD, CY, GI, IM, MT, RO, CH, AT, DK, GR, IT, MC, SM, TR, BE, EE, HU, LV, NL, SK, GB, BG, FI, IS, LI, NO, SI, VA, FR, IL, LT, PL, ES, CZ, DE, IE, LU, PT, SE
-* [Worldpay](http://www.worldpay.com/) - HK, US, GB, AU, AD, BE, CH, CY, CZ, DE, DK, ES, FI, FR, GI, GR, HU, IE, IL, IT, LI, LU, MC, MT, NL, NO, NZ, PL, PT, SE, SG, SI, SM, TR, UM, VA
+* [Worldpay Global](http://www.worldpay.com/) - HK, GB, AU, AD, BE, CH, CY, CZ, DE, DK, ES, FI, FR, GI, GR, HU, IE, IL, IT, LI, LU, MC, MT, NL, NO, NZ, PL, PT, SE, SG, SI, SM, TR, UM, VA
 * [Worldpay US](http://www.worldpay.com/us) - US
 
-## Deprecation Policy
+## API stability policy
 
-Deprecated functionality is removed on major version changes - for example, deprecations from 2.x are removed in 3.x.
-
-## Contributing
-
-1. [Fork it](http://github.com/Shopify/active_merchant/fork) and clone your new repo
-2. Create a branch (`git checkout -b my_awesome_feature`)
-3. Commit your changes (`git add my/awesome/file.rb; git commit -m "Added my awesome feature"`)
-4. Push your changes to your fork (`git push origin my_awesome_feature`)
-5. Open a [Pull Request](https://github.com/shopify/active_merchant/pulls)
-
-Please see the [ActiveMerchant Guide to Contributing](http://github.com/Shopify/active_merchant/wikis/contributing) for
-information on adding a new gateway to ActiveMerchant.
-
-Please don't touch the CHANGELOG in your pull requests, we'll add the appropriate CHANGELOG entries
-at release time.
-
+Functionality or APIs that are deprecated will be marked as such. Deprecated functionality is removed on major version changes - for example, deprecations from 2.x are removed in 3.x.
