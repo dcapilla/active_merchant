@@ -10,6 +10,8 @@ class RemoteWorldpayOnlinePaymentsTest < Test::Unit::TestCase
 
     @options = {
       order_id: '1',
+      address: address,
+      currency: 'GBP',
       billing_address: address,
       description: 'Store Purchase'
     }
@@ -59,9 +61,14 @@ class RemoteWorldpayOnlinePaymentsTest < Test::Unit::TestCase
 
     assert refund = @gateway.refund(nil, purchase.authorization)
     assert_success refund
+  end 
+
+  def test_failed_refund
+    response = @gateway.refund(nil, '')
+    assert_failure response
   end
 
-  def test_partial_refund
+  def test_successful_partial_refund
     purchase = @gateway.purchase(@amount, @credit_card, @options)
     assert_success purchase
 
@@ -69,11 +76,13 @@ class RemoteWorldpayOnlinePaymentsTest < Test::Unit::TestCase
     assert_success refund
   end
 
-  def test_failed_refund
-    response = @gateway.refund(nil, '')
-    assert_failure response
-  end
+  def test_failure_partial_refund
+    purchase = @gateway.purchase(@amount, @credit_card, @options)
+    assert_success purchase
 
+    assert refund = @gateway.refund(@amount, purchase.authorization)
+    assert_failure refund
+  end
   def test_successful_void
     auth = @gateway.authorize(@amount, @credit_card, @options)
     assert_success auth

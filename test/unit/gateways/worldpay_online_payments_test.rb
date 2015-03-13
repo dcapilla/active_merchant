@@ -74,7 +74,15 @@ class WorldpayOnlinePaymentsTest < Test::Unit::TestCase
   def test_successful_refund
     response_purchase = @gateway.purchase(@amount, @credit_card, @options)
     assert_success response_purchase
-    response = @gateway.refund(@amount, response_purchase.params["orderCode"], @options)
+
+    assert refund = @gateway.refund(nil, response_purchase.params["orderCode"], @options)
+    assert_success refund
+  end 
+
+  def test_successful_partial_refund
+    response_purchase = @gateway.purchase(@amount, @credit_card, @options)
+    assert_success response_purchase
+    response = @gateway.refund(@amount-1, response_purchase.params["orderCode"], @options)
     assert_success response
   end
 
@@ -83,6 +91,14 @@ class WorldpayOnlinePaymentsTest < Test::Unit::TestCase
     assert_success response_purchase
 
     response = @gateway.refund(@amount, response_purchase.params["orderCode"]+"1", @options)
+    assert_failure response
+  end
+
+  def test_failed_partial_refund
+    response_purchase = @gateway.purchase(@amount, @credit_card, @options)
+    assert_success response_purchase
+
+    response = @gateway.refund(@amount, response_purchase.params["orderCode"], @options)
     assert_failure response
   end
 
