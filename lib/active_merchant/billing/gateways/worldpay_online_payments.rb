@@ -1,9 +1,10 @@
 module ActiveMerchant #:nodoc:
   module Billing #:nodoc:
     class WorldpayOnlinePaymentsGateway < Gateway
-      self.live_url = 'https://api.worldpay.com/v1/'
+      self.live_url =  'https://api.worldpay.com/v1/'
 
       self.default_currency = 'GBP'
+
       self.money_format = :cents
 
       self.supported_countries = %w(HK US GB AU AD BE CH CY CZ DE DK ES FI FR GI GR HU IE IL IT LI LU MC MT NL NO NZ PL PT SE SG SI SM TR UM VA)
@@ -11,6 +12,8 @@ module ActiveMerchant #:nodoc:
 
       self.homepage_url = 'http://online.worldpay.com'
       self.display_name = 'Worldpay Online Payments'
+
+      @ignore_http_status = false
 
       def initialize(options={})
         requires!(options, :client_key)
@@ -21,18 +24,36 @@ module ActiveMerchant #:nodoc:
       end
 
       def authorize(money, creditcard, options={})
-
+        # create token
         token_response = create_token(true, creditcard.first_name+' '+creditcard.last_name, creditcard.month, creditcard.year, creditcard.number, creditcard.verification_value)
         token_response = parse(token_response)
 
         if token_response['token']
+          # Create Authorize Only Order
+          options[:authorizeOnly] = true
+          post = create_post_for_auth_or_purchase(token_response['token'], money, options)
 
-          Response.new(true,
-                       "SUCCESS",
-                       {},
-                       :test => @service_key[0]=="T" ? true : false,
-                       :authorization => token_response['token']
-          )
+          #puts post
+          @ignore_http_status = true
+          response = ssl_post(self.live_url+'/orders', post.to_json, 'Content-Type' => 'application/json', 'Authorization' => @service_key)
+
+          response = parse(response)
+
+          if response && response['httpStatusCode']==400
+            Response.new(false,
+                         "FAILURE",
+                         response,
+                         :test => @service_key[0]=="T" ? true : false
+                         #add some cool message here
+            )
+          else
+            Response.new(true,
+                         "SUCCESS",
+                         {},
+                         :test => @service_key[0]=="T" ? true : false,
+                         :authorization => response['orderCode']
+            )
+          end
         else
           Response.new(false,
                        "FAILURE",
@@ -43,9 +64,8 @@ module ActiveMerchant #:nodoc:
 
       end
 
-      def capture(money, authorization, options={})
-          post = create_post_for_auth_or_purchase(authorization, money, options)
-          commit(:post, 'orders', post, options)
+      def capture(money, orderCode, options={})
+          commit(:post, "orders/#{CGI.escape(orderCode)}/capture", {"captureAmount"=>money}, options)
       end
 
 
@@ -91,9 +111,7 @@ module ActiveMerchant #:nodoc:
           "clientKey"=> @client_key
         }
 
-        url = self.live_url+'/tokens'
-
-        token_response = ssl_post(url, obj.to_json, 'Content-Type' => 'application/json', 'Authorization' => @service_key)
+        token_response = ssl_post(self.live_url+'/tokens', obj.to_json, 'Content-Type' => 'application/json', 'Authorization' => @service_key)
 
         token_response
       end
@@ -108,8 +126,8 @@ module ActiveMerchant #:nodoc:
           "token" => token,
           "orderDescription" => options[:description],
           "amount" => money,
-          "currencyCode" => options[:currency],
-          "name" => options[:address][:name],
+          "currencyCode" => options[:currency] || default_currency,
+          "name" => options[:address]&&options[:address][:name] ? options[:address][:name] : '',
 =begin
           "customerIdentifiers" => {
               "product-category"=>"fruits",
@@ -119,16 +137,17 @@ module ActiveMerchant #:nodoc:
           },
 =end
           "billingAddress" => {
-              "address1"=>options[:address][:address1],
-              "address2"=>options[:address][:address2],
+              "address1"=>options[:address]&&options[:address][:address1] ? options[:address][:address1] : '',
+              "address2"=>options[:address]&&options[:address][:address2] ? options[:address][:address2] : '',
               "address3"=>"",
-              "postalCode"=>options[:address][:zip],
-              "city"=>options[:address][:city],
-              "state"=>options[:address][:state],
-              "countryCode"=>options[:address][:country]
+              "postalCode"=>options[:address]&&options[:address][:zip] ? options[:address][:zip] : '',
+              "city"=>options[:address]&&options[:address][:city] ? options[:address][:city] : '',
+              "state"=>options[:address]&&options[:address][:state] ? options[:address][:state] : '',
+              "countryCode"=>options[:address]&&options[:address][:country] ? options[:address][:country] : ''
           },
           "customerOrderCode" => options[:order_id],
-          "orderType" => "ECOM"
+          "orderType" => "ECOM",
+          "authorizeOnly" => options[:authorizeOnly] ? true : false
         }
 
 
@@ -219,12 +238,12 @@ module ActiveMerchant #:nodoc:
         rescue ResponseError => e
           raw_response = e.response.body
           response = response_error(raw_response)
-        rescue JSON::ParserError => e
+
+          else
+            response = json_error(raw_response)rescue JSON::ParserError => e
           if (/orders\/(.*)\/refund/.match(url))
             success = true
             response = {}
-          else
-            response = json_error(raw_response)
           end
         end
 
@@ -255,6 +274,13 @@ module ActiveMerchant #:nodoc:
                 "message" => msg
             }
         }
+      end
+
+      def handle_response(response)
+        if @ignore_http_status || (200...300).include?(response.code.to_i)
+          return response.body
+        end
+        response.body
       end
 
       def post_data(params)
