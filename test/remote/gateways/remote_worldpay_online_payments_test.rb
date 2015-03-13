@@ -68,7 +68,7 @@ class RemoteWorldpayOnlinePaymentsTest < Test::Unit::TestCase
     assert_failure response
   end
 
-  def test_successful_partial_refund
+  def test_partial_refund
     purchase = @gateway.purchase(@amount, @credit_card, @options)
     assert_success purchase
 
@@ -76,7 +76,7 @@ class RemoteWorldpayOnlinePaymentsTest < Test::Unit::TestCase
     assert_success refund
   end
 
-  def test_failure_partial_refund
+  def test_failed_partial_refund
     purchase = @gateway.purchase(@amount, @credit_card, @options)
     assert_success purchase
 
