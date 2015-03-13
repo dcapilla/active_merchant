@@ -82,6 +82,7 @@ class WorldpayOnlinePaymentsTest < Test::Unit::TestCase
   def test_successful_partial_refund
     response_purchase = @gateway.purchase(@amount, @credit_card, @options)
     assert_success response_purchase
+    
     response = @gateway.refund(@amount-1, response_purchase.params["orderCode"], @options)
     assert_success response
   end
