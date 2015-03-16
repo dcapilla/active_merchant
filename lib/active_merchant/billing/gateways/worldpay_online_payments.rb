@@ -172,11 +172,6 @@ module ActiveMerchant #:nodoc:
         end
       end
 
-      def add_invoice(post, money, options)
-        post[:amount] = amount(money)
-        post[:currency] = (options[:currency] || currency(money))
-      end
-
       def parse(body)
         if (!body)
           body = {}
@@ -269,24 +264,7 @@ module ActiveMerchant #:nodoc:
         response.body
       end
 
-      def post_data(params)
-        return nil unless params
-
-        params.map do |key, value|
-          next if value.blank?
-          if value.is_a?(Hash)
-            h = {}
-            value.each do |k, v|
-              h["#{key}[#{k}]"] = v unless v.blank?
-            end
-            post_data(h)
-          elsif value.is_a?(Array)
-            value.map { |v| "#{key}[]=#{CGI.escape(v.to_s)}" }.join("&")
-          else
-            "#{key}=#{CGI.escape(value.to_s)}"
-          end
-        end.compact.join("&")
-      end
+      
     end
   end
 end
