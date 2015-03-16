@@ -80,7 +80,8 @@ module ActiveMerchant #:nodoc:
       end
 
       def refund(money, orderCode, options={})
-        commit(:post, "orders/#{CGI.escape(orderCode)}/refund", {}, options)
+        obj = money ? {"refundAmount" => money} : {}
+        commit(:post, "orders/#{CGI.escape(orderCode)}/refund", obj, options)
       end
 
       def void(orderCode, options={})
