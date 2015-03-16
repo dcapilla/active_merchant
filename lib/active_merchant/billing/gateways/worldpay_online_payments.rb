@@ -13,8 +13,6 @@ module ActiveMerchant #:nodoc:
       self.homepage_url = 'http://online.worldpay.com'
       self.display_name = 'Worldpay Online Payments'
 
-      @ignore_http_status = false
-
       def initialize(options={})
         requires!(options, :client_key)
         requires!(options, :service_key)
@@ -26,15 +24,13 @@ module ActiveMerchant #:nodoc:
       def authorize(money, creditcard, options={})
         # create token
         token_response = create_token(true, creditcard.first_name+' '+creditcard.last_name, creditcard.month, creditcard.year, creditcard.number, creditcard.verification_value)
-        token_response = parse(token_response)
 
-        if token_response['token']
+        if token_response.success?
           # Create Authorize Only Order
           options[:authorizeOnly] = true
-          post = create_post_for_auth_or_purchase(token_response['token'], money, options)
+          post = create_post_for_auth_or_purchase(token_response.authorization, money, options)
 
           #puts post
-          @ignore_http_status = true
           response = ssl_post(self.live_url+'/orders', post.to_json, 'Content-Type' => 'application/json', 'Authorization' => @service_key)
 
           response = parse(response)
@@ -74,10 +70,9 @@ module ActiveMerchant #:nodoc:
 
 
       def purchase(money, creditcard, options={})
-        token_response = create_token(true, creditcard.first_name+' '+creditcard.last_name, creditcard.month, creditcard.year, creditcard.number, creditcard.verification_value)
-        response = parse(token_response)
-        if (response['token'])
-          post = create_post_for_auth_or_purchase(response['token'], money, options)
+        response = create_token(true, creditcard.first_name+' '+creditcard.last_name, creditcard.month, creditcard.year, creditcard.number, creditcard.verification_value)
+        if response.success?
+          post = create_post_for_auth_or_purchase(response.authorization, money, options)
           response = commit(:post, 'orders', post, options)
         else
           response = {message=>'FAILED'}
@@ -99,10 +94,14 @@ module ActiveMerchant #:nodoc:
      end
 
       def verify(creditcard, options={})
-        MultiResponse.run(:use_first_response) do |r|
-          r.process { authorize(50, creditcard, options) }
-          r.process(:ignore_result) { void(r.authorization, options) }
+
+        response = create_token(true, creditcard.first_name+' '+creditcard.last_name, creditcard.month, creditcard.year, creditcard.number, creditcard.verification_value)
+
+        if response.success?
+          response = authorize(0, credit_card, options)
         end
+
+        response
       end
 
       private
@@ -122,7 +121,7 @@ module ActiveMerchant #:nodoc:
           "clientKey"=> @client_key
         }
 
-        token_response = ssl_post(self.live_url+'/tokens', obj.to_json, 'Content-Type' => 'application/json', 'Authorization' => @service_key)
+        token_response = commit(:post, 'tokens', obj, {'Authorization' => @service_key})
 
         token_response
       end
@@ -231,6 +230,9 @@ module ActiveMerchant #:nodoc:
             "X-Worldpay-Client-User-Agent" => user_agent,
             "X-Worldpay-Client-User-Metadata" => {:ip => options[:ip]}.to_json
         }
+        if options['Authorization']
+          headers['Authorization'] = options['Authorization']
+        end
         headers
       end
 
@@ -262,12 +264,19 @@ module ActiveMerchant #:nodoc:
           response = json_error(raw_response)
         end
 
+        if response["orderCode"]
+          authorization = response["orderCode"]
+        elsif response["token"]
+          authorization = response["token"]
+        else
+          authorization = response["message"]
+        end
 
         Response.new(success,
                      success ? "SUCCESS" : response["message"],
                      response,
                      :test => @service_key[0]=="T" ? true : false,
-                     :authorization => success ? response["orderCode"] : response["message"],
+                     :authorization => authorization,
                      :avs_result => {},
                      :cvv_result => {},
                      :error_code => success ? nil : response["customCode"]
@@ -292,9 +301,6 @@ module ActiveMerchant #:nodoc:
       end
 
       def handle_response(response)
-        if @ignore_http_status || (200...300).include?(response.code.to_i)
-          return response.body
-        end
         response.body
       end
 
