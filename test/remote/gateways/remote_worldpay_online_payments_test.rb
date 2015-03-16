@@ -18,7 +18,6 @@ class RemoteWorldpayOnlinePaymentsTest < Test::Unit::TestCase
     }
   end
 
-=begin
   def test_successful_purchase
     response = @gateway.purchase(@amount, @credit_card, @options)
     assert_success response
@@ -31,34 +30,31 @@ class RemoteWorldpayOnlinePaymentsTest < Test::Unit::TestCase
     assert_equal 'FAILED', response.message
   end
 
-=end
+  def test_successful_authorize_and_capture
+    auth = @gateway.authorize(@amount, @credit_card, @options)
+    assert_success auth
 
-  # def test_successful_authorize_and_capture
-  #   auth = @gateway.authorize(@amount, @credit_card, @options)
-  #   assert_success auth
+    assert capture = @gateway.capture(@amount, auth.authorization)
+    assert_success capture
+  end
 
-  #   assert capture = @gateway.capture(@amount, auth.authorization)
-  #   assert_success capture
-  # end
+  def test_failed_authorize
+    response = @gateway.authorize(@amount, @declined_card, @options)
+    assert_failure response
+  end
 
-  # def test_failed_authorize
-  #   response = @gateway.authorize(@amount, @declined_card, @options)
-  #   assert_failure response
-  # end
+  def test_partial_capture
+    auth = @gateway.authorize(@amount, @credit_card, @options)
+    assert_success auth
 
-  # def test_partial_capture
-  #   auth = @gateway.authorize(@amount, @credit_card, @options)
-  #   assert_success auth
+    assert capture = @gateway.capture(@amount-1, auth.authorization)
+    assert_success capture
+  end
 
-  #   assert capture = @gateway.capture(@amount-1, auth.authorization)
-  #   assert_success capture
-  # end
-
-  # def test_failed_capture
-  #   response = @gateway.capture(nil, '')
-  #   assert_failure response
-  # end
-
+  def test_failed_capture
+    response = @gateway.capture(nil, '')
+    assert_failure response
+  end
 
   def test_successful_refund
     purchase = @gateway.purchase(@amount, @credit_card, @options)
@@ -84,15 +80,6 @@ class RemoteWorldpayOnlinePaymentsTest < Test::Unit::TestCase
     assert_failure refund
   end 
 
-  #   assert refund = @gateway.refund(nil, purchase.authorization)
-  #   assert_success refund
-  # end
-
-  # def test_partial_refund
-  #   purchase = @gateway.purchase(@amount, @credit_card, @options)
-  #   assert_success purchase
-
-
   def test_failed_partial_refund
     purchase = @gateway.purchase(@amount, @credit_card, @options)
     assert_success purchase
@@ -100,18 +87,19 @@ class RemoteWorldpayOnlinePaymentsTest < Test::Unit::TestCase
     assert refund = @gateway.refund(@amount, purchase.authorization)
     assert_failure refund
   end
-  # def test_failed_refund
-  #   response = @gateway.refund(nil, '')
-  #   assert_failure response
-  # end
 
-  # def test_successful_void
-  #   authorize = @gateway.authorize(@amount, @credit_card, @options)
-  #   assert_success authorize
+  def test_failed_refund
+    response = @gateway.refund(nil, '')
+    assert_failure response
+  end
 
-  #   void = @gateway.void(authorize.authorization)
-  #   assert_success void
-  # end
+  def test_successful_void
+    authorize = @gateway.authorize(@amount, @credit_card, @options)
+    assert_success authorize
+
+    void = @gateway.void(authorize.authorization)
+    assert_success void
+  end
 
   def test_successful_order_void
     purchase = @gateway.purchase(@amount, @credit_card, @options)
@@ -149,14 +137,14 @@ class RemoteWorldpayOnlinePaymentsTest < Test::Unit::TestCase
     assert_not_match %r{SUCCESS}, response.message
   end
 
-  # def test_invalid_login
-  #   gateway = WorldpayOnlinePaymentsGateway.new(
-  #     client_key: "T_C_NOT_VALID",
-  #     service_key: "T_S_NOT_VALID"
-  #   )
-  #   response = gateway.purchase(@amount, @credit_card, @options)
-  #   assert_failure response
-  # end
+  def test_invalid_login
+    gateway = WorldpayOnlinePaymentsGateway.new(
+      client_key: "T_C_NOT_VALID",
+      service_key: "T_S_NOT_VALID"
+    )
+    response = gateway.purchase(@amount, @credit_card, @options)
+    assert_failure response
+  end
 
 
 end
