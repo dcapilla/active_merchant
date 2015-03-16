@@ -70,22 +70,26 @@ module ActiveMerchant #:nodoc:
 
 
       def purchase(money, creditcard, options={})
-
-        auth = authorize(money, creditcard, options)
-        if (auth.authorization)
-          post = create_post_for_auth_or_purchase(auth.authorization, money, options)
-          commit(:post, 'orders', post, options)
+        response = create_token(true, creditcard.first_name+' '+creditcard.last_name, creditcard.month, creditcard.year, creditcard.number, creditcard.verification_value)
+        response = parse(token_response)
+        if (response['token'])
+          post = create_post_for_auth_or_purchase(response['token'], money, options)
+          response = commit(:post, 'orders', post, options)
         end
-
+        response
       end
 
       def refund(money, orderCode, options={})
         commit(:post, "orders/#{CGI.escape(orderCode)}/refund", {}, options)
       end
 
-      def void(orderCode, options={})
-        commit(:post, "orders/#{CGI.escape(orderCode)}/refund", {}, options)
-      end
+     def void(orderCode, options={})
+        response = commit(:delete, "orders/#{CGI.escape(orderCode)}", nil, options)
+        if !response.success? && response.error_code != 'ORDER_NOT_FOUND'
+          response = refund(nil, orderCode)
+        end
+        response
+     end
 
       def verify(creditcard, options={})
         MultiResponse.run(:use_first_response) do |r|
@@ -229,22 +233,27 @@ module ActiveMerchant #:nodoc:
         success = false
         begin
 
-          raw_response = ssl_request(method, self.live_url + url, parameters.to_json, headers(options))
-
-
-          response = parse(raw_response)
-
-          success = !response.key?("error")
-        rescue ResponseError => e
-          raw_response = e.response.body
-          response = response_error(raw_response)
-
+          if parameters == nil
+            json = nil
           else
-            response = json_error(raw_response)rescue JSON::ParserError => e
-          if (/orders\/(.*)\/refund/.match(url))
+            json = parameters.to_json
+          end
+
+          raw_response = ssl_request(method, self.live_url + url, json, headers(options))
+
+          if (raw_response != '')
+            response = parse(raw_response)
+            success = !response.key?("httpStatusCode")
+          else
             success = true
             response = {}
           end
+
+        rescue ResponseError => e
+          raw_response = e.response.body
+          response = response_error(raw_response)
+        rescue JSON::ParserError => e
+          response = json_error(raw_response)
         end
 
 
