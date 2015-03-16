@@ -23,41 +23,17 @@ module ActiveMerchant #:nodoc:
 
       def authorize(money, creditcard, options={})
         # create token
-        token_response = create_token(true, creditcard.first_name+' '+creditcard.last_name, creditcard.month, creditcard.year, creditcard.number, creditcard.verification_value)
+        response = create_token(true, creditcard.first_name+' '+creditcard.last_name, creditcard.month, creditcard.year, creditcard.number, creditcard.verification_value)
 
-        if token_response.success?
+        if response.success?
           # Create Authorize Only Order
           options[:authorizeOnly] = true
-          post = create_post_for_auth_or_purchase(token_response.authorization, money, options)
+          post = create_post_for_auth_or_purchase(response.authorization, money, options)
 
           #puts post
-          response = ssl_post(self.live_url+'/orders', post.to_json, 'Content-Type' => 'application/json', 'Authorization' => @service_key)
-
-          response = parse(response)
-
-          if response && response['httpStatusCode']==400
-            Response.new(false,
-                         "FAILURE",
-                         response,
-                         :test => @service_key[0]=="T" ? true : false
-                         #add some cool message here
-            )
-          else
-            Response.new(true,
-                         "SUCCESS",
-                         {},
-                         :test => @service_key[0]=="T" ? true : false,
-                         :authorization => response['orderCode']
-            )
-          end
-        else
-          Response.new(false,
-                       "FAILURE",
-                       token_response,
-                       :test => @service_key[0]=="T" ? true : false
-          )
+          response = commit(:post, 'orders', post)
         end
-
+        response
       end
 
       def capture(money, orderCode, options={})
@@ -88,14 +64,7 @@ module ActiveMerchant #:nodoc:
      end
 
       def verify(creditcard, options={})
-
-        response = create_token(true, creditcard.first_name+' '+creditcard.last_name, creditcard.month, creditcard.year, creditcard.number, creditcard.verification_value)
-
-        if response.success?
-          response = authorize(0, credit_card, options)
-        end
-
-        response
+        authorize(0, creditcard, options)
       end
 
       private
