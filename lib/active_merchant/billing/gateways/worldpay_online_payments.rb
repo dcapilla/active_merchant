@@ -23,59 +23,38 @@ module ActiveMerchant #:nodoc:
 
       def authorize(money, creditcard, options={})
         # create token
-        token_response = create_token(true, creditcard.first_name+' '+creditcard.last_name, creditcard.month, creditcard.year, creditcard.number, creditcard.verification_value)
+        response = create_token(true, creditcard.first_name+' '+creditcard.last_name, creditcard.month, creditcard.year, creditcard.number, creditcard.verification_value)
 
-        if token_response.success?
+        if response.success?
           # Create Authorize Only Order
           options[:authorizeOnly] = true
-          post = create_post_for_auth_or_purchase(token_response.authorization, money, options)
-
-          #puts post
-          response = ssl_post(self.live_url+'/orders', post.to_json, 'Content-Type' => 'application/json', 'Authorization' => @service_key)
-
-          response = parse(response)
-
-          if response && response['httpStatusCode']==400
-            Response.new(false,
-                         "FAILURE",
-                         response,
-                         :test => @service_key[0]=="T" ? true : false
-                         #add some cool message here
-            )
-          else
-            Response.new(true,
-                         "SUCCESS",
-                         {},
-                         :test => @service_key[0]=="T" ? true : false,
-                         :authorization => response['orderCode']
-            )
-          end
-        else
-          Response.new(false,
-                       "FAILURE",
-                       token_response,
-                       :test => @service_key[0]=="T" ? true : false
-          )
+          post = create_post_for_auth_or_purchase(response.authorization, money, options)
+          response = commit(:post, 'orders', post)
         end
-
+        response
       end
 
       def capture(money, orderCode, options={})
         if (orderCode)
           commit(:post, "orders/#{CGI.escape(orderCode)}/capture", {"captureAmount"=>money}, options)
         else
-          'FAILED'
+          Response.new(false,
+            'FAILED',
+            'FAILED',
+            :test => @service_key[0]=="T" ? true : false,
+            :authorization => false,
+            :avs_result => {},
+            :cvv_result => {},
+            :error_code => false
+          )
         end
       end
-
 
       def purchase(money, creditcard, options={})
         response = create_token(true, creditcard.first_name+' '+creditcard.last_name, creditcard.month, creditcard.year, creditcard.number, creditcard.verification_value)
         if response.success?
           post = create_post_for_auth_or_purchase(response.authorization, money, options)
           response = commit(:post, 'orders', post, options)
-        else
-          response = {message=>'FAILED'}
         end
         response
       end
@@ -85,27 +64,19 @@ module ActiveMerchant #:nodoc:
         commit(:post, "orders/#{CGI.escape(orderCode)}/refund", obj, options)
       end
 
-     def void(orderCode, options={})
+      def void(orderCode, options={})
         response = commit(:delete, "orders/#{CGI.escape(orderCode)}", nil, options)
         if !response.success? && response.error_code != 'ORDER_NOT_FOUND'
           response = refund(nil, orderCode)
         end
         response
-     end
+      end
 
       def verify(creditcard, options={})
-
-        response = create_token(true, creditcard.first_name+' '+creditcard.last_name, creditcard.month, creditcard.year, creditcard.number, creditcard.verification_value)
-
-        if response.success?
-          response = authorize(0, credit_card, options)
-        end
-
-        response
+        authorize(0, creditcard, options)
       end
 
       private
-
 
       def create_token(reusable, name, exp_month, exp_year, number, cvc)
         obj = {
@@ -126,91 +97,26 @@ module ActiveMerchant #:nodoc:
         token_response
       end
 
-
       def create_post_for_auth_or_purchase(token, money, options)
-        post = {}
-
-        add_amount(post, money, options, true)
-
-        post = {
-          "token" => token,
-          "orderDescription" => options[:description],
-          "amount" => money,
-          "currencyCode" => options[:currency] || default_currency,
-          "name" => options[:address]&&options[:address][:name] ? options[:address][:name] : '',
-=begin
-          "customerIdentifiers" => {
-              "product-category"=>"fruits",
-              "product-quantity"=>"3",
-              "product-quantity"=>"5",
-              "product-name"=>"orange"
-          },
-=end
-          "billingAddress" => {
-              "address1"=>options[:address]&&options[:address][:address1] ? options[:address][:address1] : '',
-              "address2"=>options[:address]&&options[:address][:address2] ? options[:address][:address2] : '',
-              "address3"=>"",
-              "postalCode"=>options[:address]&&options[:address][:zip] ? options[:address][:zip] : '',
-              "city"=>options[:address]&&options[:address][:city] ? options[:address][:city] : '',
-              "state"=>options[:address]&&options[:address][:state] ? options[:address][:state] : '',
-              "countryCode"=>options[:address]&&options[:address][:country] ? options[:address][:country] : ''
+      {
+        "token" => token,
+        "orderDescription" => options[:description],
+        "amount" => money,
+        "currencyCode" => options[:currency] || default_currency,
+        "name" => options[:billing_address]&&options[:billing_address][:name] ? options[:billing_address][:name] : '',
+        "billingAddress" => {
+          "address1"=>options[:billing_address]&&options[:billing_address][:address1] ? options[:billing_address][:address1] : '',
+          "address2"=>options[:billing_address]&&options[:billing_address][:address2] ? options[:billing_address][:address2] : '',
+          "address3"=>"",
+          "postalCode"=>options[:billing_address]&&options[:billing_address][:zip] ? options[:billing_address][:zip] : '',
+          "city"=>options[:billing_address]&&options[:billing_address][:city] ? options[:billing_address][:city] : '',
+          "state"=>options[:billing_address]&&options[:billing_address][:state] ? options[:billing_address][:state] : '',
+          "countryCode"=>options[:billing_address]&&options[:billing_address][:country] ? options[:billing_address][:country] : ''
           },
           "customerOrderCode" => options[:order_id],
           "orderType" => "ECOM",
           "authorizeOnly" => options[:authorizeOnly] ? true : false
         }
-
-
-        post
-      end
-
-
-      def add_amount(post, money, options, include_currency = false)
-        currency = options[:currency] || currency(money)
-        post[:amount] = localized_amount(money, currency)
-        post[:currency] = currency.downcase if include_currency
-      end
-
-      def add_address(post, options)
-        return unless post[:card] && post[:card].kind_of?(Hash)
-        if address = options[:billing_address] || options[:address]
-          post[:card][:address_line1] = address[:address1] if address[:address1]
-          post[:card][:address_line2] = address[:address2] if address[:address2]
-          post[:card][:address_country] = address[:country] if address[:country]
-          post[:card][:address_zip] = address[:zip] if address[:zip]
-          post[:card][:address_state] = address[:state] if address[:state]
-          post[:card][:address_city] = address[:city] if address[:city]
-        end
-      end
-
-      def add_creditcard(post, creditcard, options)
-        card = {}
-        if creditcard.respond_to?(:number)
-          if creditcard.respond_to?(:track_data) && creditcard.track_data.present?
-            card[:swipe_data] = creditcard.track_data
-          else
-            card[:number] = creditcard.number
-            card[:exp_month] = creditcard.month
-            card[:exp_year] = creditcard.year
-            card[:cvc] = creditcard.verification_value if creditcard.verification_value?
-            card[:name] = creditcard.name if creditcard.name
-          end
-
-          post[:card] = card
-          add_address(post, options)
-        elsif creditcard.kind_of?(String)
-          if options[:track_data]
-            card[:swipe_data] = options[:track_data]
-          else
-            card = creditcard
-          end
-          post[:card] = card
-        end
-      end
-
-      def add_invoice(post, money, options)
-        post[:amount] = amount(money)
-        post[:currency] = (options[:currency] || currency(money))
       end
 
       def parse(body)
@@ -224,11 +130,11 @@ module ActiveMerchant #:nodoc:
 
       def headers(options = {})
         headers = {
-            "Authorization" => @service_key,
-            "Content-Type" => 'application/json',
-            "User-Agent" => "Worldpay/v1 ActiveMerchantBindings/#{ActiveMerchant::VERSION}",
-            "X-Worldpay-Client-User-Agent" => user_agent,
-            "X-Worldpay-Client-User-Metadata" => {:ip => options[:ip]}.to_json
+          "Authorization" => @service_key,
+          "Content-Type" => 'application/json',
+          "User-Agent" => "Worldpay/v1 ActiveMerchantBindings/#{ActiveMerchant::VERSION}",
+          "X-Worldpay-Client-User-Agent" => user_agent,
+          "X-Worldpay-Client-User-Metadata" => {:ip => options[:ip]}.to_json
         }
         if options['Authorization']
           headers['Authorization'] = options['Authorization']
@@ -273,13 +179,13 @@ module ActiveMerchant #:nodoc:
         end
 
         Response.new(success,
-                     success ? "SUCCESS" : response["message"],
-                     response,
-                     :test => @service_key[0]=="T" ? true : false,
-                     :authorization => authorization,
-                     :avs_result => {},
-                     :cvv_result => {},
-                     :error_code => success ? nil : response["customCode"]
+          success ? "SUCCESS" : response["message"],
+          response,
+          :test => @service_key[0]=="T" ? true : false,
+          :authorization => authorization,
+          :avs_result => {},
+          :cvv_result => {},
+          :error_code => success ? nil : response["customCode"]
         )
       end
 
@@ -290,13 +196,14 @@ module ActiveMerchant #:nodoc:
           json_error(raw_response)
         end
       end
+
       def json_error(raw_response)
         msg = 'Invalid response received from the Worldpay Online Payments API.  Please contact techsupport.online@worldpay.com if you continue to receive this message.'
         msg += "  (The raw response returned by the API was #{raw_response.inspect})"
         {
-            "error" => {
-                "message" => msg
-            }
+          "error" => {
+            "message" => msg
+          }
         }
       end
 
@@ -304,24 +211,6 @@ module ActiveMerchant #:nodoc:
         response.body
       end
 
-      def post_data(params)
-        return nil unless params
-
-        params.map do |key, value|
-          next if value.blank?
-          if value.is_a?(Hash)
-            h = {}
-            value.each do |k, v|
-              h["#{key}[#{k}]"] = v unless v.blank?
-            end
-            post_data(h)
-          elsif value.is_a?(Array)
-            value.map { |v| "#{key}[]=#{CGI.escape(v.to_s)}" }.join("&")
-          else
-            "#{key}=#{CGI.escape(value.to_s)}"
-          end
-        end.compact.join("&")
-      end
     end
   end
 end
