@@ -6,15 +6,13 @@ class RemoteWorldpayOnlinePaymentsTest < Test::Unit::TestCase
 
     @amount = 1000
     @credit_card = credit_card('4444333322221111')
-    @declined_card = credit_card('9999999999999')
+    @declined_card = credit_card('2424242424242424')
 
     @options = {
       order_id: '1',
-      address: address,
       currency: 'GBP',
       billing_address: address,
-      description: 'Store Purchase',
-      address: address
+      description: 'Store Purchase'
     }
   end
 
@@ -27,7 +25,7 @@ class RemoteWorldpayOnlinePaymentsTest < Test::Unit::TestCase
   def test_failed_purchase
     response = @gateway.purchase(@amount, @declined_card, @options)
     assert_failure response
-    assert_equal 'FAILED', response.message
+    assert_not_equal 'SUCCESS', response.message
   end
 
   def test_successful_authorize_and_capture
@@ -36,6 +34,14 @@ class RemoteWorldpayOnlinePaymentsTest < Test::Unit::TestCase
 
     assert capture = @gateway.capture(@amount, auth.authorization)
     assert_success capture
+  end
+
+  def test_failed_authorize_and_capture
+    auth = @gateway.authorize(@amount, @declined_card, @options)
+    assert_failure auth
+
+    assert capture = @gateway.capture(@amount, auth.authorization)
+    assert_not_equal 'SUCCESS', capture.message
   end
 
   def test_failed_authorize
@@ -62,7 +68,7 @@ class RemoteWorldpayOnlinePaymentsTest < Test::Unit::TestCase
 
     assert refund = @gateway.refund(nil, purchase.authorization)
     assert_success refund
-  end 
+  end
 
   def test_failed_refund
     response = @gateway.refund(nil, '')
@@ -86,11 +92,6 @@ class RemoteWorldpayOnlinePaymentsTest < Test::Unit::TestCase
 
     assert refund = @gateway.refund(@amount, purchase.authorization)
     assert_failure refund
-  end
-
-  def test_failed_refund
-    response = @gateway.refund(nil, '')
-    assert_failure response
   end
 
   def test_successful_void
@@ -138,11 +139,11 @@ class RemoteWorldpayOnlinePaymentsTest < Test::Unit::TestCase
   end
 
   def test_invalid_login
-    gateway = WorldpayOnlinePaymentsGateway.new(
+    badgateway = WorldpayOnlinePaymentsGateway.new(
       client_key: "T_C_NOT_VALID",
       service_key: "T_S_NOT_VALID"
     )
-    response = gateway.purchase(@amount, @credit_card, @options)
+    response = badgateway.purchase(@amount, @credit_card, @options)
     assert_failure response
   end
 
