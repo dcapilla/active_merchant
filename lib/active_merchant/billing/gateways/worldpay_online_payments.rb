@@ -65,16 +65,22 @@ module ActiveMerchant #:nodoc:
       end
 
       def capture(money, orderCode, options={})
+        if (orderCode)
           commit(:post, "orders/#{CGI.escape(orderCode)}/capture", {"captureAmount"=>money}, options)
+        else
+          'FAILED'
+        end
       end
 
 
       def purchase(money, creditcard, options={})
-        response = create_token(true, creditcard.first_name+' '+creditcard.last_name, creditcard.month, creditcard.year, creditcard.number, creditcard.verification_value)
+        token_response = create_token(true, creditcard.first_name+' '+creditcard.last_name, creditcard.month, creditcard.year, creditcard.number, creditcard.verification_value)
         response = parse(token_response)
         if (response['token'])
           post = create_post_for_auth_or_purchase(response['token'], money, options)
           response = commit(:post, 'orders', post, options)
+        else
+          response = {message=>'FAILED'}
         end
         response
       end
@@ -233,7 +239,6 @@ module ActiveMerchant #:nodoc:
         raw_response = response = nil
         success = false
         begin
-
           if parameters == nil
             json = nil
           else
@@ -259,7 +264,7 @@ module ActiveMerchant #:nodoc:
 
 
         Response.new(success,
-                     success ? "Transaction approved" : response["message"],
+                     success ? "SUCCESS" : response["message"],
                      response,
                      :test => @service_key[0]=="T" ? true : false,
                      :authorization => success ? response["orderCode"] : response["message"],
